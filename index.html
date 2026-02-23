@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐱⚡ Sprint Timer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  .container {
+    text-align: center;
+    max-width: 600px;
+    padding: 2rem;
+  }
+  .header {
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .task {
+    font-size: 1rem;
+    color: #888;
+    margin-bottom: 2rem;
+    font-style: italic;
+  }
+  .clock {
+    font-size: 8rem;
+    font-weight: 200;
+    letter-spacing: 0.05em;
+    margin: 1rem 0;
+    transition: color 0.5s;
+  }
+  .clock.warning { color: #f59e0b; }
+  .clock.danger { color: #ef4444; animation: pulse 1s infinite; }
+  .clock.done { color: #22c55e; }
+  .clock.running { color: #e0e0e0; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    margin: 2rem 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
+    border-radius: 2px;
+    transition: width 1s linear;
+  }
+  .status {
+    font-size: 1rem;
+    color: #555;
+    margin-top: 1rem;
+  }
+  .sprint-label {
+    display: inline-block;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 1rem;
+  }
+  .controls {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #333;
+    padding: 0.6rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button:hover { background: #2a2a2a; border-color: #555; }
+  button.primary { border-color: #22c55e; color: #22c55e; }
+  button.primary:hover { background: #22c55e22; }
+  button.danger { border-color: #ef4444; color: #ef4444; }
+  button.danger:hover { background: #ef444422; }
+  .setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .setup h1 { font-size: 2rem; font-weight: 300; margin-bottom: 1rem; }
+  .time-presets { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
+  .time-presets button { font-size: 1.1rem; padding: 0.8rem 1.5rem; }
+  input[type="text"] {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #e0e0e0;
+    padding: 0.6rem 1rem;
+    font-family: inherit;
+    font-size: 1rem;
+    border-radius: 4px;
+    width: 300px;
+    text-align: center;
+  }
+  input[type="text"]::placeholder { color: #444; }
+  .checkins {
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: #555;
+  }
+  .checkins span.hit { color: #22c55e; text-decoration: line-through; }
+  .checkins span.next { color: #f59e0b; }
+  .no-youtube {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    font-size: 0.75rem;
+    color: #333;
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<div class="container" id="setup-screen">
+  <div class="setup">
+    <h1>🐱⚡ Sprint Timer</h1>
+    <input type="text" id="task-input" placeholder="What are you working on?">
+    <div class="time-presets">
+      <button onclick="startTimer(15)">15 min</button>
+      <button onclick="startTimer(25)">25 min</button>
+      <button onclick="startTimer(50)" class="primary">50 min</button>
+      <button onclick="startTimer(75)">75 min</button>
+      <button onclick="startTimer(90)">90 min</button>
+    </div>
+  </div>
+</div>
+
+<div class="container" id="timer-screen" style="display:none;">
+  <div class="sprint-label" id="sprint-label">SPRINT</div>
+  <div class="header">BODY DOUBLING</div>
+  <div class="task" id="task-display"></div>
+  <div class="clock running" id="clock">50:00</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+  <div class="checkins" id="checkins"></div>
+  <div class="status" id="status">focused.</div>
+  <div class="controls">
+    <button onclick="pauseResume()" id="pause-btn">⏸ Pause</button>
+    <button onclick="resetTimer()" class="danger">✕ End</button>
+  </div>
+</div>
+
+<div class="no-youtube">no youtube.</div>
+
+<script>
+let totalSeconds = 0;
+let remainingSeconds = 0;
+let interval = null;
+let paused = false;
+let checkinTimes = [];
+
+function getCheckins(minutes) {
+  if (minutes <= 15) return [10];
+  if (minutes <= 25) return [15];
+  if (minutes <= 50) return [15, 35];
+  if (minutes <= 75) return [20, 45, 60];
+  return Array.from({length: Math.floor(minutes/20)}, (_, i) => (i+1)*20).filter(t => t < minutes);
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function startTimer(minutes) {
+  totalSeconds = minutes * 60;
+  remainingSeconds = totalSeconds;
+  checkinTimes = getCheckins(minutes);
+  
+  const task = document.getElementById('task-input').value || 'Deep work';
+  document.getElementById('task-display').textContent = task;
+  document.getElementById('sprint-label').textContent = `${minutes} MIN SPRINT`;
+  
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('timer-screen').style.display = 'block';
+  
+  updateDisplay();
+  interval = setInterval(tick, 1000);
+  
+  // Update page title
+  document.title = `${formatTime(remainingSeconds)} — ${task}`;
+}
+
+function tick() {
+  if (paused) return;
+  remainingSeconds--;
+  
+  if (remainingSeconds <= 0) {
+    remainingSeconds = 0;
+    clearInterval(interval);
+    document.getElementById('status').textContent = '✅ SESSION COMPLETE. Autopsy time.';
+    document.getElementById('clock').className = 'clock done';
+    document.title = '✅ DONE';
+    try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZWTi4J8eX2Dh4mLi4mHhYOBf35+fn5+fn5+').play(); } catch(e) {}
+    return;
+  }
+  
+  updateDisplay();
+  document.title = `${formatTime(remainingSeconds)} — Sprint`;
+}
+
+function updateDisplay() {
+  const elapsed = totalSeconds - remainingSeconds;
+  const elapsedMin = elapsed / 60;
+  const pct = (elapsed / totalSeconds) * 100;
+  
+  document.getElementById('clock').textContent = formatTime(remainingSeconds);
+  document.getElementById('progress').style.width = pct + '%';
+  
+  // Color states
+  const clock = document.getElementById('clock');
+  if (remainingSeconds <= 60) {
+    clock.className = 'clock danger';
+  } else if (remainingSeconds <= 300) {
+    clock.className = 'clock warning';
+  } else {
+    clock.className = 'clock running';
+  }
+  
+  // Check-in display
+  const checkinHtml = checkinTimes.map(t => {
+    if (elapsedMin >= t) return `<span class="hit">✓ ${t}min</span>`;
+    const isNext = checkinTimes.filter(c => elapsedMin < c)[0] === t;
+    if (isNext) return `<span class="next">→ ${t}min check-in</span>`;
+    return `<span>${t}min</span>`;
+  }).join(' &nbsp;·&nbsp; ');
+  document.getElementById('checkins').innerHTML = checkinHtml;
+  
+  // Status
+  const statusEl = document.getElementById('status');
+  if (remainingSeconds <= 60) statusEl.textContent = 'final minute. finish strong.';
+  else if (remainingSeconds <= 300) statusEl.textContent = 'last 5 minutes. push.';
+  else statusEl.textContent = 'focused.';
+}
+
+function pauseResume() {
+  paused = !paused;
+  document.getElementById('pause-btn').textContent = paused ? '▶ Resume' : '⏸ Pause';
+  document.getElementById('status').textContent = paused ? '⏸ paused.' : 'focused.';
+}
+
+function resetTimer() {
+  clearInterval(interval);
+  document.getElementById('setup-screen').style.display = 'block';
+  document.getElementById('timer-screen').style.display = 'none';
+  document.title = '🐱⚡ Sprint Timer';
+}
+
+// Auto-start from URL params
+const params = new URLSearchParams(window.location.search);
+if (params.get('min')) {
+  document.getElementById('task-input').value = params.get('task') || '';
+  startTimer(parseInt(params.get('min')));
+}
+</script>
+</body>
+</html>
