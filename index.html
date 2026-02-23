@@ -46,6 +46,7 @@
   .clock.danger { color: #ef4444; animation: pulse 1s infinite; }
   .clock.done { color: #22c55e; }
   .clock.running { color: #e0e0e0; }
+  .clock.waiting { color: #333; }
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
@@ -130,6 +131,24 @@
   }
   .checkins span.hit { color: #22c55e; text-decoration: line-through; }
   .checkins span.next { color: #f59e0b; }
+  .sync-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+  .sync-dot.connected { background: #22c55e; }
+  .sync-dot.disconnected { background: #ef4444; }
+  .sync-dot.polling { background: #f59e0b; animation: pulse 1s infinite; }
+  .sync-status {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    font-size: 0.7rem;
+    color: #444;
+  }
   .no-youtube {
     position: fixed;
     bottom: 1.5rem;
@@ -138,9 +157,32 @@
     color: #333;
     letter-spacing: 0.1em;
   }
+  .waiting-screen {
+    text-align: center;
+  }
+  .waiting-screen h1 {
+    font-size: 2rem;
+    font-weight: 300;
+    margin-bottom: 1rem;
+  }
+  .waiting-screen p {
+    color: #555;
+    font-size: 0.9rem;
+  }
+  .waiting-pulse {
+    font-size: 4rem;
+    color: #333;
+    animation: pulse 2s infinite;
+    margin: 2rem 0;
+  }
 </style>
 </head>
 <body>
+
+<div class="sync-status">
+  <span class="sync-dot polling" id="sync-dot"></span>
+  <span id="sync-text">connecting...</span>
+</div>
 
 <div class="container" id="setup-screen">
   <div class="setup">
@@ -152,6 +194,19 @@
       <button onclick="startTimer(50)" class="primary">50 min</button>
       <button onclick="startTimer(75)">75 min</button>
       <button onclick="startTimer(90)">90 min</button>
+    </div>
+    <p style="color:#555; font-size:0.8rem; margin-top:1rem;">or wait for Ford to start a session ↑</p>
+  </div>
+</div>
+
+<div class="container" id="waiting-screen" style="display:none;">
+  <div class="waiting-screen">
+    <h1>🐱⚡ Sprint Timer</h1>
+    <div class="waiting-pulse">⏳</div>
+    <p>Waiting for Ford to start a session...</p>
+    <p style="margin-top:0.5rem; color:#444; font-size:0.8rem;">Polling every 5 seconds</p>
+    <div class="controls" style="margin-top:2rem;">
+      <button onclick="showSetup()">Start manually instead</button>
     </div>
   </div>
 </div>
@@ -173,11 +228,18 @@
 <div class="no-youtube">no youtube.</div>
 
 <script>
+// Config
+const API_URL = 'https://yellow-block-6533.alexeyyoussef.workers.dev';
+const API_KEY = new URLSearchParams(window.location.search).get('key') || '';
+const POLL_INTERVAL = 5000;
+
 let totalSeconds = 0;
-let remainingSeconds = 0;
-let interval = null;
+let startedAtMs = 0;
+let localInterval = null;
 let paused = false;
 let checkinTimes = [];
+let syncMode = !!API_KEY; // true if key provided
+let currentMode = 'setup'; // setup | waiting | timer
 
 function getCheckins(minutes) {
   if (minutes <= 15) return [10];
@@ -188,59 +250,68 @@ function getCheckins(minutes) {
 }
 
 function formatTime(s) {
+  if (s < 0) s = 0;
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
-function startTimer(minutes) {
+function showScreen(name) {
+  document.getElementById('setup-screen').style.display = name === 'setup' ? 'block' : 'none';
+  document.getElementById('waiting-screen').style.display = name === 'waiting' ? 'block' : 'none';
+  document.getElementById('timer-screen').style.display = name === 'timer' ? 'block' : 'none';
+  currentMode = name;
+}
+
+function showSetup() { showScreen('setup'); }
+
+function startTimer(minutes, task, startMs, sprint) {
   totalSeconds = minutes * 60;
-  remainingSeconds = totalSeconds;
+  startedAtMs = startMs || Date.now();
   checkinTimes = getCheckins(minutes);
   
-  const task = document.getElementById('task-input').value || 'Deep work';
-  document.getElementById('task-display').textContent = task;
-  document.getElementById('sprint-label').textContent = `${minutes} MIN SPRINT`;
+  const taskText = task || document.getElementById('task-input').value || 'Deep work';
+  document.getElementById('task-display').textContent = taskText;
+  document.getElementById('sprint-label').textContent = sprint ? `SPRINT ${sprint} · ${minutes} MIN` : `${minutes} MIN SPRINT`;
   
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('timer-screen').style.display = 'block';
+  showScreen('timer');
+  paused = false;
   
-  updateDisplay();
-  interval = setInterval(tick, 1000);
-  
-  // Update page title
-  document.title = `${formatTime(remainingSeconds)} — ${task}`;
+  if (localInterval) clearInterval(localInterval);
+  localInterval = setInterval(tick, 1000);
+  tick(); // immediate update
 }
 
 function tick() {
   if (paused) return;
-  remainingSeconds--;
+  
+  const elapsedMs = Date.now() - startedAtMs;
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+  
+  updateDisplay(remainingSeconds, elapsedSeconds);
   
   if (remainingSeconds <= 0) {
-    remainingSeconds = 0;
-    clearInterval(interval);
+    clearInterval(localInterval);
     document.getElementById('status').textContent = '✅ SESSION COMPLETE. Autopsy time.';
     document.getElementById('clock').className = 'clock done';
     document.title = '✅ DONE';
-    try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkZWTi4J8eX2Dh4mLi4mHhYOBf35+fn5+fn5+').play(); } catch(e) {}
-    return;
   }
-  
-  updateDisplay();
-  document.title = `${formatTime(remainingSeconds)} — Sprint`;
 }
 
-function updateDisplay() {
-  const elapsed = totalSeconds - remainingSeconds;
-  const elapsedMin = elapsed / 60;
-  const pct = (elapsed / totalSeconds) * 100;
+function updateDisplay(remainingSeconds, elapsedSeconds) {
+  const elapsedMin = elapsedSeconds / 60;
+  const pct = Math.min(100, (elapsedSeconds / totalSeconds) * 100);
   
   document.getElementById('clock').textContent = formatTime(remainingSeconds);
   document.getElementById('progress').style.width = pct + '%';
+  document.title = `${formatTime(remainingSeconds)} — Sprint`;
   
   // Color states
   const clock = document.getElementById('clock');
-  if (remainingSeconds <= 60) {
+  if (remainingSeconds <= 0) {
+    clock.className = 'clock done';
+  } else if (remainingSeconds <= 60) {
     clock.className = 'clock danger';
   } else if (remainingSeconds <= 300) {
     clock.className = 'clock warning';
@@ -257,9 +328,10 @@ function updateDisplay() {
   }).join(' &nbsp;·&nbsp; ');
   document.getElementById('checkins').innerHTML = checkinHtml;
   
-  // Status
+  // Status text
   const statusEl = document.getElementById('status');
-  if (remainingSeconds <= 60) statusEl.textContent = 'final minute. finish strong.';
+  if (remainingSeconds <= 0) statusEl.textContent = '✅ session complete.';
+  else if (remainingSeconds <= 60) statusEl.textContent = 'final minute. finish strong.';
   else if (remainingSeconds <= 300) statusEl.textContent = 'last 5 minutes. push.';
   else statusEl.textContent = 'focused.';
 }
@@ -271,17 +343,72 @@ function pauseResume() {
 }
 
 function resetTimer() {
-  clearInterval(interval);
-  document.getElementById('setup-screen').style.display = 'block';
-  document.getElementById('timer-screen').style.display = 'none';
+  clearInterval(localInterval);
+  if (syncMode) {
+    showScreen('waiting');
+  } else {
+    showScreen('setup');
+  }
   document.title = '🐱⚡ Sprint Timer';
 }
 
-// Auto-start from URL params
+// === SYNC MODE ===
+let pollTimer = null;
+
+async function pollState() {
+  if (!syncMode) return;
+  
+  try {
+    const dot = document.getElementById('sync-dot');
+    const text = document.getElementById('sync-text');
+    
+    const res = await fetch(`${API_URL}/state?key=${API_KEY}`);
+    if (!res.ok) {
+      dot.className = 'sync-dot disconnected';
+      text.textContent = 'auth failed';
+      return;
+    }
+    
+    const state = await res.json();
+    dot.className = 'sync-dot connected';
+    text.textContent = 'synced';
+    
+    if (state.active && currentMode !== 'timer') {
+      // New sprint started — auto-launch timer
+      startTimer(state.durationMin, state.task, state.startedAt, state.sprint);
+    } else if (!state.active && currentMode === 'timer') {
+      // Sprint ended remotely
+      clearInterval(localInterval);
+      document.getElementById('status').textContent = '✅ SESSION ENDED BY FORD.';
+      document.getElementById('clock').className = 'clock done';
+      document.title = '✅ DONE';
+      setTimeout(() => showScreen('waiting'), 5000);
+    } else if (!state.active && currentMode === 'setup') {
+      showScreen('waiting');
+    }
+  } catch (e) {
+    document.getElementById('sync-dot').className = 'sync-dot disconnected';
+    document.getElementById('sync-text').textContent = 'offline';
+  }
+}
+
+// Init
 const params = new URLSearchParams(window.location.search);
-if (params.get('min')) {
-  document.getElementById('task-input').value = params.get('task') || '';
-  startTimer(parseInt(params.get('min')));
+
+if (syncMode) {
+  // Sync mode: poll backend
+  showScreen('waiting');
+  pollState();
+  pollTimer = setInterval(pollState, POLL_INTERVAL);
+} else if (params.get('min')) {
+  // URL param mode: auto-start
+  const startMs = params.get('start') ? parseInt(params.get('start')) : Date.now();
+  startTimer(parseInt(params.get('min')), params.get('task') || '', startMs);
+} else {
+  // Manual mode
+  showScreen('setup');
+  document.getElementById('sync-dot').className = 'sync-dot disconnected';
+  document.getElementById('sync-text').textContent = 'no key — manual mode';
 }
 </script>
 </body>
