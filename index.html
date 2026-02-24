@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>🐱⚡ Sprint Timer</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; width: 100%; }
   body {
     background: #0a0a0a;
     color: #e0e0e0;
@@ -15,32 +16,41 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    min-height: 100dvh;
     overflow: hidden;
+    padding: clamp(0.5rem, 2vw, 2rem);
   }
   .container {
     text-align: center;
-    max-width: 600px;
-    padding: 2rem;
+    width: 100%;
+    max-width: min(600px, 95vw);
+    padding: clamp(0.5rem, 2vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
   .header {
-    font-size: 1.2rem;
+    font-size: clamp(0.6rem, 2.5vmin, 1.2rem);
     color: #666;
-    margin-bottom: 0.5rem;
+    margin-bottom: clamp(0.2rem, 1vmin, 0.5rem);
     letter-spacing: 0.2em;
     text-transform: uppercase;
   }
   .task {
-    font-size: 1rem;
+    font-size: clamp(0.6rem, 2vmin, 1rem);
     color: #888;
-    margin-bottom: 2rem;
+    margin-bottom: clamp(0.5rem, 3vmin, 2rem);
     font-style: italic;
+    word-break: break-word;
   }
   .clock {
-    font-size: 8rem;
+    font-size: clamp(2rem, 20vmin, 8rem);
     font-weight: 200;
     letter-spacing: 0.05em;
-    margin: 1rem 0;
+    margin: clamp(0.3rem, 2vmin, 1rem) 0;
     transition: color 0.5s;
+    line-height: 1.1;
   }
   .clock.warning { color: #f59e0b; }
   .clock.danger { color: #ef4444; animation: pulse 1s infinite; }
@@ -53,10 +63,10 @@
   }
   .progress-bar {
     width: 100%;
-    height: 4px;
+    height: clamp(2px, 0.5vmin, 4px);
     background: #1a1a1a;
     border-radius: 2px;
-    margin: 2rem 0;
+    margin: clamp(0.5rem, 2vmin, 2rem) 0;
     overflow: hidden;
   }
   .progress-fill {
@@ -66,24 +76,24 @@
     transition: width 1s linear;
   }
   .status {
-    font-size: 1rem;
+    font-size: clamp(0.55rem, 2vmin, 1rem);
     color: #555;
-    margin-top: 1rem;
+    margin-top: clamp(0.3rem, 1vmin, 1rem);
   }
   .sprint-label {
     display: inline-block;
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 4px;
-    padding: 0.3rem 0.8rem;
-    font-size: 0.8rem;
+    padding: clamp(0.15rem, 0.5vmin, 0.3rem) clamp(0.4rem, 1.5vmin, 0.8rem);
+    font-size: clamp(0.5rem, 1.8vmin, 0.8rem);
     color: #888;
-    margin-bottom: 1rem;
+    margin-bottom: clamp(0.3rem, 1vmin, 1rem);
   }
   .controls {
-    margin-top: 2rem;
+    margin-top: clamp(0.5rem, 2vmin, 2rem);
     display: flex;
-    gap: 1rem;
+    gap: clamp(0.4rem, 1.5vmin, 1rem);
     justify-content: center;
     flex-wrap: wrap;
   }
@@ -91,12 +101,14 @@
     background: #1a1a1a;
     color: #e0e0e0;
     border: 1px solid #333;
-    padding: 0.6rem 1.5rem;
+    padding: clamp(0.3rem, 1vmin, 0.6rem) clamp(0.6rem, 2.5vmin, 1.5rem);
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: clamp(0.55rem, 2vmin, 0.9rem);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   button:hover { background: #2a2a2a; border-color: #555; }
   button.primary { border-color: #22c55e; color: #22c55e; }
@@ -107,36 +119,49 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: clamp(0.5rem, 2vmin, 1.5rem);
+    width: 100%;
   }
-  .setup h1 { font-size: 2rem; font-weight: 300; margin-bottom: 1rem; }
-  .time-presets { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
-  .time-presets button { font-size: 1.1rem; padding: 0.8rem 1.5rem; }
+  .setup h1 {
+    font-size: clamp(1rem, 5vmin, 2rem);
+    font-weight: 300;
+    margin-bottom: clamp(0.3rem, 1vmin, 1rem);
+  }
+  .time-presets {
+    display: flex;
+    gap: clamp(0.3rem, 1vmin, 0.8rem);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .time-presets button {
+    font-size: clamp(0.6rem, 2.5vmin, 1.1rem);
+    padding: clamp(0.3rem, 1.5vmin, 0.8rem) clamp(0.5rem, 2.5vmin, 1.5rem);
+  }
   input[type="text"] {
     background: #1a1a1a;
     border: 1px solid #333;
     color: #e0e0e0;
-    padding: 0.6rem 1rem;
+    padding: clamp(0.3rem, 1vmin, 0.6rem) clamp(0.5rem, 1.5vmin, 1rem);
     font-family: inherit;
-    font-size: 1rem;
+    font-size: clamp(0.6rem, 2.5vmin, 1rem);
     border-radius: 4px;
-    width: 300px;
+    width: min(300px, 90%);
     text-align: center;
   }
   input[type="text"]::placeholder { color: #444; }
   .checkins {
-    margin-top: 1.5rem;
-    font-size: 0.85rem;
+    margin-top: clamp(0.5rem, 1.5vmin, 1.5rem);
+    font-size: clamp(0.5rem, 1.8vmin, 0.85rem);
     color: #555;
   }
   .checkins span.hit { color: #22c55e; text-decoration: line-through; }
   .checkins span.next { color: #f59e0b; }
   .sync-dot {
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: clamp(5px, 1vmin, 8px);
+    height: clamp(5px, 1vmin, 8px);
     border-radius: 50%;
-    margin-right: 0.5rem;
+    margin-right: 0.4em;
     vertical-align: middle;
   }
   .sync-dot.connected { background: #22c55e; }
@@ -144,36 +169,52 @@
   .sync-dot.polling { background: #f59e0b; animation: pulse 1s infinite; }
   .sync-status {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
-    font-size: 0.7rem;
+    top: clamp(0.3rem, 1vmin, 1rem);
+    right: clamp(0.3rem, 1vmin, 1rem);
+    font-size: clamp(0.4rem, 1.5vmin, 0.7rem);
     color: #444;
+    z-index: 10;
   }
   .no-youtube {
     position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    font-size: 0.75rem;
+    bottom: clamp(0.5rem, 1.5vmin, 1.5rem);
+    right: clamp(0.5rem, 1.5vmin, 1.5rem);
+    font-size: clamp(0.4rem, 1.5vmin, 0.75rem);
     color: #333;
     letter-spacing: 0.1em;
   }
-  .waiting-screen {
-    text-align: center;
-  }
+  .waiting-screen { text-align: center; }
   .waiting-screen h1 {
-    font-size: 2rem;
+    font-size: clamp(1rem, 5vmin, 2rem);
     font-weight: 300;
-    margin-bottom: 1rem;
+    margin-bottom: clamp(0.3rem, 1vmin, 1rem);
   }
   .waiting-screen p {
     color: #555;
-    font-size: 0.9rem;
+    font-size: clamp(0.55rem, 2vmin, 0.9rem);
   }
   .waiting-pulse {
-    font-size: 4rem;
+    font-size: clamp(1.5rem, 8vmin, 4rem);
     color: #333;
     animation: pulse 2s infinite;
-    margin: 2rem 0;
+    margin: clamp(0.5rem, 2vmin, 2rem) 0;
+  }
+
+  /* Ultra-compact: very small windows */
+  @media (max-height: 300px) {
+    .header, .task, .sprint-label { display: none; }
+    .no-youtube { display: none; }
+    .progress-bar { margin: 0.3rem 0; }
+    .controls { margin-top: 0.3rem; }
+  }
+  @media (max-height: 200px) {
+    .checkins, .status { display: none; }
+    .progress-bar { display: none; }
+  }
+  @media (max-width: 200px) {
+    .controls { flex-direction: column; }
+    .time-presets { flex-direction: column; }
+    .no-youtube { display: none; }
   }
 </style>
 </head>
@@ -195,7 +236,7 @@
       <button onclick="startTimer(75)">75 min</button>
       <button onclick="startTimer(90)">90 min</button>
     </div>
-    <p style="color:#555; font-size:0.8rem; margin-top:1rem;">or wait for Ford to start a session ↑</p>
+    <p style="color:#555; font-size:clamp(0.45rem,1.5vmin,0.8rem); margin-top:clamp(0.3rem,1vmin,1rem);">or wait for Ford to start a session ↑</p>
   </div>
 </div>
 
@@ -204,8 +245,8 @@
     <h1>🐱⚡ Sprint Timer</h1>
     <div class="waiting-pulse">⏳</div>
     <p>Waiting for Ford to start a session...</p>
-    <p style="margin-top:0.5rem; color:#444; font-size:0.8rem;">Polling every 5 seconds</p>
-    <div class="controls" style="margin-top:2rem;">
+    <p style="margin-top:0.5rem; color:#444; font-size:clamp(0.45rem,1.5vmin,0.8rem);">Polling every 5 seconds</p>
+    <div class="controls" style="margin-top:clamp(0.5rem,2vmin,2rem);">
       <button onclick="showSetup()">Start manually instead</button>
     </div>
   </div>
@@ -238,8 +279,8 @@ let startedAtMs = 0;
 let localInterval = null;
 let paused = false;
 let checkinTimes = [];
-let syncMode = !!API_KEY; // true if key provided
-let currentMode = 'setup'; // setup | waiting | timer
+let syncMode = !!API_KEY;
+let currentMode = 'setup';
 
 function getCheckins(minutes) {
   if (minutes <= 15) return [10];
@@ -257,9 +298,9 @@ function formatTime(s) {
 }
 
 function showScreen(name) {
-  document.getElementById('setup-screen').style.display = name === 'setup' ? 'block' : 'none';
-  document.getElementById('waiting-screen').style.display = name === 'waiting' ? 'block' : 'none';
-  document.getElementById('timer-screen').style.display = name === 'timer' ? 'block' : 'none';
+  document.getElementById('setup-screen').style.display = name === 'setup' ? 'flex' : 'none';
+  document.getElementById('waiting-screen').style.display = name === 'waiting' ? 'flex' : 'none';
+  document.getElementById('timer-screen').style.display = name === 'timer' ? 'flex' : 'none';
   currentMode = name;
 }
 
@@ -279,7 +320,7 @@ function startTimer(minutes, task, startMs, sprint) {
   
   if (localInterval) clearInterval(localInterval);
   localInterval = setInterval(tick, 1000);
-  tick(); // immediate update
+  tick();
 }
 
 function tick() {
@@ -307,7 +348,6 @@ function updateDisplay(remainingSeconds, elapsedSeconds) {
   document.getElementById('progress').style.width = pct + '%';
   document.title = `${formatTime(remainingSeconds)} — Sprint`;
   
-  // Color states
   const clock = document.getElementById('clock');
   if (remainingSeconds <= 0) {
     clock.className = 'clock done';
@@ -319,7 +359,6 @@ function updateDisplay(remainingSeconds, elapsedSeconds) {
     clock.className = 'clock running';
   }
   
-  // Check-in display
   const checkinHtml = checkinTimes.map(t => {
     if (elapsedMin >= t) return `<span class="hit">✓ ${t}min</span>`;
     const isNext = checkinTimes.filter(c => elapsedMin < c)[0] === t;
@@ -328,7 +367,6 @@ function updateDisplay(remainingSeconds, elapsedSeconds) {
   }).join(' &nbsp;·&nbsp; ');
   document.getElementById('checkins').innerHTML = checkinHtml;
   
-  // Status text
   const statusEl = document.getElementById('status');
   if (remainingSeconds <= 0) statusEl.textContent = '✅ session complete.';
   else if (remainingSeconds <= 60) statusEl.textContent = 'final minute. finish strong.';
@@ -374,10 +412,8 @@ async function pollState() {
     text.textContent = 'synced';
     
     if (state.active && currentMode !== 'timer') {
-      // New sprint started — auto-launch timer
       startTimer(state.durationMin, state.task, state.startedAt, state.sprint);
     } else if (!state.active && currentMode === 'timer') {
-      // Sprint ended remotely
       clearInterval(localInterval);
       document.getElementById('status').textContent = '✅ SESSION ENDED BY FORD.';
       document.getElementById('clock').className = 'clock done';
@@ -396,16 +432,13 @@ async function pollState() {
 const params = new URLSearchParams(window.location.search);
 
 if (syncMode) {
-  // Sync mode: poll backend
   showScreen('waiting');
   pollState();
   pollTimer = setInterval(pollState, POLL_INTERVAL);
 } else if (params.get('min')) {
-  // URL param mode: auto-start
   const startMs = params.get('start') ? parseInt(params.get('start')) : Date.now();
   startTimer(parseInt(params.get('min')), params.get('task') || '', startMs);
 } else {
-  // Manual mode
   showScreen('setup');
   document.getElementById('sync-dot').className = 'sync-dot disconnected';
   document.getElementById('sync-text').textContent = 'no key — manual mode';
